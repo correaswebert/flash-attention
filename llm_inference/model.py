@@ -112,15 +112,26 @@ class customAttention(torch.nn.Module):
         if decode and kv_cache is not None:
             ##############################################################
 
-            # TODO: Decode mode: use cached KV for attention
-            raise NotImplementedError
+            k_cache, v_cache = kv_cache
+            custom_flash_attention_decode.update_kv_cache(k_cache, v_cache, k, v, current_pos)
+            k_full = k_cache[:, :current_pos + 1, :].contiguous()
+            v_full = v_cache[:, :current_pos + 1, :].contiguous()
+            o = custom_flash_attention_decode.custom_flash_attention_decode(
+                q, k_full, v_full, self.num_heads, True  
+            )
 
             ##############################################################
         else:
             ##############################################################
 
-            # TODO: Prefill mode: store kv cache and use regular attention
-            raise NotImplementedError
+            k_cache, v_cache = kv_cache
+            
+            k_cache[:, current_pos:current_pos + seq_len, :] = k
+            v_cache[:, current_pos:current_pos + seq_len, :] = v
+            
+            o = custom_flash_attention.custom_flash_attention(
+                q, k, v, self.num_heads, True  # causal=True for decoder
+            )
 
             ##############################################################
         
