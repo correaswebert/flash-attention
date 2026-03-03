@@ -33,28 +33,31 @@ class CustomSelfAttention(torch.nn.Module):
         Returns:
             Output tensor of shape (batch_size, seq_len, hidden_dim)
         '''
-    
+
         batch_size, seq_len, _ = x.shape
 
         q = x @ self.w_q.T
         k = x @ self.w_k.T
         v = x @ self.w_v.T
-        
 
-      
-        q=q.view(batch_size, seq_len,self.num_heads, self.head_dim)
-        k=k.view(batch_size, seq_len,self.num_heads, self.head_dim)
-        v=v.view(batch_size, seq_len,self.num_heads, self.head_dim)
-        q=q.transpose(1, 2)
-        k=k.transpose(1, 2)
-        v=v.transpose(1,2)
-        scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        q = q.view(batch_size, seq_len,self.num_heads, self.head_dim)
+        k = k.view(batch_size, seq_len,self.num_heads, self.head_dim)
+        v = v.view(batch_size, seq_len,self.num_heads, self.head_dim)
+
+        q = q.transpose(1, 2)
+        k = k.transpose(1, 2)
+        v = v.transpose(1, 2)
+
+        scores = (q @ k.mT) / math.sqrt(self.head_dim)
+
         if causal:
-                mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
-                scores = scores.masked_fill(mask, float('-inf'))
-        
+            mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device),
+                              diagonal=1).bool()
+            scores = scores.masked_fill(mask, -torch.inf)
+
         attn_weights = F.softmax(scores, dim=-1)
         o = attn_weights @ v
+
         o = o.transpose(1, 2)
         o = o.contiguous().view(batch_size, seq_len, self.hidden_dim)
 
